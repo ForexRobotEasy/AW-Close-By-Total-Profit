@@ -1,0 +1,142 @@
+
+//+------------------------------------------------------------------+
+//|                                 AW Close By Total Profit.mq5     |
+//|                  Copyright 2021, Forex Robot Easy Team           |
+//|                        https://www.forexroboteasy.com             |
+//+------------------------------------------------------------------+
+#property copyright 'Copyright 2021, Forex Robot Easy Team'
+#property link      'https://www.forexroboteasy.com'
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                        Global Variables                          |
+//|                                                                  |
+//+------------------------------------------------------------------+
+input double TakeProfit = 50.0; // Default take profit level
+input double StopLoss = 30.0; // Default stop loss level
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                    Closing Orders Function                        |
+//|                                                                  |
+//+------------------------------------------------------------------+
+void CloseOrders(bool closeAll=false)
+{
+   if(closeAll)
+   {
+      for(int i=OrdersTotal()-1; i>=0; i--)
+      {
+         if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+         {
+            if(OrderSymbol() == Symbol())
+            {
+               OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 0, clrNone);
+            }
+         }
+      }
+   }
+   else
+   {
+      if(OrderSelect(0, SELECT_BY_POS, MODE_TRADES))
+      {
+         if(OrderSymbol() == Symbol())
+         {
+            OrderClose(OrderTicket(), OrderLots(), OrderClosePrice(), 0, clrNone);
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                     Trailing Profit Function                      |
+//|                                                                  |
+//+------------------------------------------------------------------+
+void TrailingProfit(double trailingStop)
+{
+   double currentProfit = 0.0;
+   double trailingLevel = 0.0;
+   double stopLossPrice = 0.0;
+
+   while(true)
+   {
+      if(OrdersTotal()>0)
+      {
+         for(int i=OrdersTotal()-1; i>=0; i--)
+         {
+            if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES) && OrderSymbol() == Symbol())
+            {
+               currentProfit = OrderProfit();
+               trailingLevel = OrderOpenPrice() + trailingStop * Point;
+               stopLossPrice = OrderStopLoss();
+
+               if(currentProfit > trailingLevel && stopLossPrice < OrderStopLoss())
+               {
+                  OrderModify(OrderTicket(), OrderOpenPrice(), trailingLevel, stopLossPrice, 0, clrNone);
+               }
+            }
+         }
+      }
+
+      Sleep(1000); // Sleep for 1 second before checking again
+   }
+}
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                    One-Click Stop Function                        |
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OneClickStop()
+{
+   if(ButtonClicked())
+   {
+      ExpertRemove();
+   }
+}
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                           Initialization                         |
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OnInit()
+{
+   ChartEventAdd(0, CHARTEVENT_CLICK); // Register chart click event
+}
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                           Deinitialization                       |
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   ChartEventRemove(0, CHARTEVENT_CLICK); // Unregister chart click event
+}
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                          OnChartEvent                             |
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OnChartEvent(const int id, const long& lparam, const double& dparam, const string& sparam)
+{
+   if(id == CHARTEVENT_CLICK)
+   {
+      OneClickStop();
+   }
+}
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//|                            Start Function                         |
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OnStart()
+{
+   CloseOrders(); // Close existing orders for the current symbol
+
+   TrailingProfit(10.0); // Start trailing profit with a trailing stop of 10 pips
+}
+
